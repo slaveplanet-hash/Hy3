@@ -1,0 +1,18 @@
+# HY3 local runtime data (never commit)
+hy3.db
+hy3.db-wal
+hy3.db-shm
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# WorkBuddy project state (local, not source)
+.workbuddy-ai/
+
+# Editor / OS
+*.swp
+.DS_Store
