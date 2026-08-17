@@ -152,33 +152,39 @@ def _print_event(ev) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argparse parser for the hy3 CLI."""
-    p = argparse.ArgumentParser(prog="hy3", description="HY3 Phase 0 CLI")
-    p.add_argument("--db", default=DEFAULT_DB, help="path to hy3.db (default: ./hy3.db)")
+    # Shared so --db works before OR after the subcommand.
+    db_parent = argparse.ArgumentParser(add_help=False)
+    db_parent.add_argument(
+        "--db", default=DEFAULT_DB,
+        help="path to hy3.db (default: ./hy3.db in the current directory)",
+    )
+    p = argparse.ArgumentParser(prog="hy3", description="HY3 Phase 0 CLI", parents=[db_parent])
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("init", help="initialize the local database")
+    sub.add_parser("init", parents=[db_parent], help="initialize the local database")
 
-    sp = sub.add_parser("session", help="session commands")
+    sp = sub.add_parser("session", parents=[db_parent], help="session commands")
     sp_sub = sp.add_subparsers(dest="session_cmd", required=True)
-    p_new = sp_sub.add_parser("new", help="create a new session")
+    p_new = sp_sub.add_parser("new", parents=[db_parent], help="create a new session")
     p_new.add_argument("goal")
     p_new.add_argument("--title")
     p_new.add_argument("--tags", help="comma-separated tags")
-    sp_sub.add_parser("list", help="list sessions")
-    p_show = sp_sub.add_parser("show", help="show a session")
+    p_list = sp_sub.add_parser("list", parents=[db_parent], help="list sessions")
+    p_list.add_argument("--limit", type=int, default=20)
+    p_show = sp_sub.add_parser("show", parents=[db_parent], help="show a session")
     p_show.add_argument("id")
     p_show.add_argument("--limit", type=int, default=20)
-    p_res = sp_sub.add_parser("resume", help="resume a session")
+    p_res = sp_sub.add_parser("resume", parents=[db_parent], help="resume a session")
     p_res.add_argument("id")
 
-    et = sub.add_parser("events", help="event commands")
+    et = sub.add_parser("events", parents=[db_parent], help="event commands")
     et_sub = et.add_subparsers(dest="events_cmd", required=True)
-    et_tail = et_sub.add_parser("tail", help="tail recent events")
+    et_tail = et_sub.add_parser("tail", parents=[db_parent], help="tail recent events")
     et_tail.add_argument("--session")
     et_tail.add_argument("--kind")
     et_tail.add_argument("--limit", type=int, default=20)
 
-    s = sub.add_parser("search", help="full-text search events")
+    s = sub.add_parser("search", parents=[db_parent], help="full-text search events")
     s.add_argument("query")
     s.add_argument("--session")
     s.add_argument("--limit", type=int, default=50)
