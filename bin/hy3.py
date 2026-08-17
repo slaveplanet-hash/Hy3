@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HY3 Phase 0 command-line interface.
+"""HY3 command-line interface.
 
 Usage:
     hy3 init
@@ -9,14 +9,18 @@ Usage:
     hy3 session resume <id>
     hy3 events tail [--session <id>] [--kind <k>] [--limit N]
     hy3 search "<query>"
+    hy3 caps list
+    hy3 caps show <id>
+    hy3 caps route "<goal>" [--top-k N]
 
 The database defaults to ./hy3.db in the current directory; migrations live in
-../migrations relative to this script.
+../migrations relative to this script. `hy3 caps` is database-independent.
 """
 from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import os
 import sys
 from typing import Optional
@@ -29,6 +33,7 @@ if REPO_ROOT not in sys.path:
 from hy3.core import events as events_mod  # noqa: E402
 from hy3.core import session as session_mod  # noqa: E402
 from hy3.core.store import Store  # noqa: E402
+from hy3.registry import Registry  # noqa: E402
 
 MIGRATIONS_DIR = os.path.join(REPO_ROOT, "migrations")
 DEFAULT_DB = os.path.join(os.getcwd(), "hy3.db")
@@ -150,6 +155,59 @@ def _print_event(ev) -> None:
     print(f"  {_fmt_ts(ev['ts'])}  {kind:14} {cap:16} {payload}")
 
 
+def cmd_caps_list(args: argparse.Namespace) -> int:
+    """List every registered capability under one schema."""
+    reg = Registry.load()
+    rows = reg.all()
+    if not rows:
+        print("(no capabilities)")
+        return 0
+    for c in rows:
+        print(
+            f"{c.id:24} {c.kind.value:10} {c.risk.value:11} "
+            f"{c.provenance:14} {c.summary}"
+        )
+    print(f"-- {len(rows)} capabilities")
+    return 0
+
+
+def cmd_caps_show(args: argparse.Namespace) -> int:
+    """Show one capability's full schema and metadata."""
+    reg = Registry.load()
+    c = reg.get(args.id)
+    if c is None:
+        print(f"unknown capability: {args.id}", file=sys.stderr)
+        return 2
+    print(f"id:         {c.id}")
+    print(f"kind:       {c.kind.value}")
+    print(f"risk:       {c.risk.value}")
+    print(f"provenance: {c.provenance}")
+    print(f"summary:    {c.summary}")
+    print(f"requires:   {', '.join(c.requires) or '-'}")
+    print(f"tags:       {', '.join(c.tags) or '-'}")
+    print(
+        f"cost:       vram={c.cost.vram_gb}gb "
+        f"usd={c.cost.usd_per_call} p50={c.cost.p50_latency_ms}ms"
+    )
+    print(f"schema_in:  {json.dumps(c.schema_in)}")
+    print(f"schema_out: {json.dumps(c.schema_out)}")
+    return 0
+
+
+def cmd_caps_route(args: argparse.Namespace) -> int:
+    """Two-stage route a goal and print the capability set the planner would see."""
+    reg = Registry.load()
+    caps = reg.retrieve(args.goal, top_k=args.top_k)
+    pinned = {"plan.replan", "memory.search", "report.write"}
+    for c in caps:
+        mark = " [pinned]" if c.id in pinned else ""
+        print(
+            f"{c.id:24} {c.kind.value:10} {c.risk.value:11}{mark}  {c.summary}"
+        )
+    print(f"-- {len(caps)} capabilities routed for: {args.goal}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the argparse parser for the hy3 CLI."""
     # Shared so --db works before OR after the subcommand.
@@ -188,6 +246,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("query")
     s.add_argument("--session")
     s.add_argument("--limit", type=int, default=50)
+
+    caps = sub.add_parser("caps", parents=[db_parent], help="capability registry commands")
+    caps_sub = caps.add_subparsers(dest="caps_cmd", required=True)
+    caps_sub.add_parser("list", parents=[db_parent], help="list all capabilities")
+    caps_show = caps_sub.add_parser("show", parents=[db_parent], help="show one capability")
+    caps_show.add_argument("id")
+    caps_route = caps_sub.add_parser("route", parents=[db_parent], help="two-stage route a goal")
+    caps_route.add_argument("goal")
+    caps_route.add_argument("--top-k", type=int, default=15, dest="top_k")
     return p
 
 
@@ -201,6 +268,11 @@ DISPATCH = {
     },
     "events": {"tail": cmd_events_tail},
     "search": cmd_search,
+    "caps": {
+        "list": cmd_caps_list,
+        "show": cmd_caps_show,
+        "route": cmd_caps_route,
+    },
 }
 
 
@@ -215,6 +287,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return DISPATCH["events"][args.events_cmd](args)
     if args.cmd == "search":
         return cmd_search(args)
+    if args.cmd == "caps":
+        return DISPATCH["caps"][args.caps_cmd](args)
     return 2
 
 
