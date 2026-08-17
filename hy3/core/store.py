@@ -29,10 +29,17 @@ def now_ms() -> int:
 class Store:
     """Thin, explicit wrapper around a single WAL-mode SQLite connection."""
 
-    def __init__(self, path: str) -> None:
-        """Open (lazily) a store backed by the SQLite file at ``path``."""
+    def __init__(self, path: str, *, check_same_thread: bool = True) -> None:
+        """Open (lazily) a store backed by the SQLite file at ``path``.
+
+        ``check_same_thread`` is forwarded to the underlying ``sqlite3.connect``.
+        The console passes it ``False`` because its HTTP handler may run on a
+        different thread than the one that opened the store; for the read-only
+        console this is safe.
+        """
         self.path = os.path.abspath(path)
         self.root = os.path.dirname(self.path)
+        self._check_same_thread = check_same_thread
         self._conn: Optional[sqlite3.Connection] = None
 
     # -- connection lifecycle --------------------------------------------------
@@ -40,7 +47,7 @@ class Store:
     def conn(self) -> sqlite3.Connection:
         """Return the live connection, opening and configuring it on first use."""
         if self._conn is None:
-            conn = sqlite3.connect(self.path, timeout=30)
+            conn = sqlite3.connect(self.path, timeout=30, check_same_thread=self._check_same_thread)
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA foreign_keys=ON")

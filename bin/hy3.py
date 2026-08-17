@@ -242,6 +242,14 @@ def cmd_plan_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_console(args: argparse.Namespace) -> int:
+    """Launch the operator console (local web UI) over the store."""
+    from hy3.console.server import serve_forever
+
+    serve_forever(args.db, host=args.host, port=args.port)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the argparse parser for the hy3 CLI."""
     # Shared so --db works before OR after the subcommand.
@@ -294,6 +302,12 @@ def build_parser() -> argparse.ArgumentParser:
     plan_sub = plan.add_subparsers(dest="plan_cmd", required=True)
     plan_val = plan_sub.add_parser("validate", parents=[db_parent], help="validate a plan JSON file")
     plan_val.add_argument("path", help="path to plan JSON (a job list or {\"jobs\": [...])")
+
+    console = sub.add_parser(
+        "console", parents=[db_parent], help="launch the operator console (web UI)"
+    )
+    console.add_argument("--host", default="127.0.0.1", help="bind host (default 127.0.0.1)")
+    console.add_argument("--port", type=int, default=8080, help="bind port (default 8080)")
     return p
 
 
@@ -315,6 +329,7 @@ DISPATCH = {
     "plan": {
         "validate": cmd_plan_validate,
     },
+    "console": cmd_console,
 }
 
 
@@ -333,6 +348,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return DISPATCH["caps"][args.caps_cmd](args)
     if args.cmd == "plan":
         return DISPATCH["plan"][args.plan_cmd](args)
+    if args.cmd == "console":
+        return DISPATCH["console"](args)
     return 2
 
 

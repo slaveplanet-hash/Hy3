@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HY3 Operator Console</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#event-list">Skip to event list</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">◈</span>
+      <div>
+        <h1>HY3 Operator Console</h1>
+        <p class="sub">local-first agent harness · read-only observability</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span id="db-path" class="db-path">local · read-only</span>
+      <a id="caps-link" class="ghost-btn" href="/api/caps" target="_blank" rel="noopener">capabilities ↗</a>
+    </div>
+  </header>
+
+  <nav id="session-ribbon" class="ribbon" aria-label="Sessions"></nav>
+
+  <main class="workspace">
+    <section class="master" aria-label="Event list">
+      <form class="filterbar" role="search" onsubmit="return false">
+        <label class="sr-only" for="filter">Display filter</label>
+        <input
+          id="filter"
+          type="text"
+          class="filter-input"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder='kind:cap.call risk:write  entity:192.168.1.180  text:"dns query"'
+          aria-describedby="filter-status"
+        />
+        <div class="filter-meta">
+          <span id="filter-status" class="filter-status" role="status" aria-live="polite"></span>
+          <span id="event-count" class="event-count"></span>
+        </div>
+      </form>
+
+      <div
+        id="event-list"
+        class="event-list"
+        role="listbox"
+        tabindex="0"
+        aria-label="Events — use arrow keys to navigate, Enter to open"
+        aria-activedescendant=""
+      ></div>
+    </section>
+
+    <aside id="detail" class="detail" aria-live="polite" aria-label="Event detail">
+      <div class="detail-empty">Select an event to inspect its payload and job context.</div>
+    </aside>
+  </main>
+
+  <script src="/static/app.js" type="module"></script>
+</body>
+</html>

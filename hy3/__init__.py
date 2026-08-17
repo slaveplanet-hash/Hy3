@@ -20,7 +20,12 @@ grouping), a two-stage `accept` gate (none/schema/regex/test/critic/state), an
 at 3, never a third attempt), and a profile-batched `Scheduler` that loads a model
 at most once per batch. The CLI exposes it via `hy3 plan validate <file>`.
 
-No UI yet — that is Phase 6 (console).
+Phase 6 delivers the operator console: a local-first, dependency-free web UI for
+observability. A stdlib HTTP server (`hy3 console`) exposes a read-only JSON API
+over the store (`ConsoleApi`), and a vanilla-JS frontend renders a Wireshark-style
+master/detail view — a session ribbon, a flat display-filterable event list (with
+`kind:cap.call risk:write entity:192.168.1.180` syntax), and selection-linked detail
+panes for event payload plus job spec / payload / acceptance / diff. No build step.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
