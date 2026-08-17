@@ -34,6 +34,9 @@ from hy3.core import events as events_mod  # noqa: E402
 from hy3.core import session as session_mod  # noqa: E402
 from hy3.core.store import Store  # noqa: E402
 from hy3.registry import Registry  # noqa: E402
+from hy3.registry.capability import Risk  # noqa: E402
+from hy3.orchestrator import Boss  # noqa: E402
+from hy3.orchestrator.dag import DagError  # noqa: E402
 
 MIGRATIONS_DIR = os.path.join(REPO_ROOT, "migrations")
 DEFAULT_DB = os.path.join(os.getcwd(), "hy3.db")
@@ -208,6 +211,37 @@ def cmd_caps_route(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_plan_validate(args: argparse.Namespace) -> int:
+    """Validate a boss plan file: check caps exist, risk ceiling, acyclicity, and
+    print the topological order and profile batches the scheduler would execute."""
+    reg = Registry.load()
+    try:
+        with open(args.path, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"cannot read plan file: {exc}", file=sys.stderr)
+        return 2
+    specs = doc["jobs"] if isinstance(doc, dict) and "jobs" in doc else doc
+    ceiling = doc.get("session_ceiling", "privileged") if isinstance(doc, dict) else "privileged"
+    max_jobs = doc.get("max_jobs", 12) if isinstance(doc, dict) else 12
+    try:
+        dag = Boss().plan_from_spec(
+            specs, registry=reg, session_ceiling=Risk(ceiling), max_jobs=max_jobs
+        )
+    except DagError as exc:
+        print(f"INVALID PLAN: {exc}", file=sys.stderr)
+        return 1
+    print(f"VALID PLAN: {len(dag.jobs)} jobs, session ceiling {dag.session_ceiling.value}")
+    print("topological order:")
+    for jid in dag.topo_order():
+        print(f"  {jid}")
+    print("profile batches (one model load each):")
+    for profile, batch in dag.batches():
+        print(f"  [{profile}] " + " ".join(j.id for j in batch))
+    print(f"-- {len(dag.batches())} batch(es) => <= {len(dag.batches())} model load(s)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the argparse parser for the hy3 CLI."""
     # Shared so --db works before OR after the subcommand.
@@ -255,6 +289,11 @@ def build_parser() -> argparse.ArgumentParser:
     caps_route = caps_sub.add_parser("route", parents=[db_parent], help="two-stage route a goal")
     caps_route.add_argument("goal")
     caps_route.add_argument("--top-k", type=int, default=15, dest="top_k")
+
+    plan = sub.add_parser("plan", parents=[db_parent], help="orchestrator plan commands")
+    plan_sub = plan.add_subparsers(dest="plan_cmd", required=True)
+    plan_val = plan_sub.add_parser("validate", parents=[db_parent], help="validate a plan JSON file")
+    plan_val.add_argument("path", help="path to plan JSON (a job list or {\"jobs\": [...])")
     return p
 
 
@@ -273,6 +312,9 @@ DISPATCH = {
         "show": cmd_caps_show,
         "route": cmd_caps_route,
     },
+    "plan": {
+        "validate": cmd_plan_validate,
+    },
 }
 
 
@@ -289,6 +331,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return cmd_search(args)
     if args.cmd == "caps":
         return DISPATCH["caps"][args.caps_cmd](args)
+    if args.cmd == "plan":
+        return DISPATCH["plan"][args.plan_cmd](args)
     return 2
 
 

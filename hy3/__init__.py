@@ -14,7 +14,13 @@ Phase 2 delivers the provider layer: one `Provider` interface over local
 classifier that blocks private/local data from leaving the machine, and a budget
 guard with session-USD / run-token hard caps.
 
-No orchestrator or UI yet — those are Phase 3+ (orchestrator) and Phase 6 (console).
+Phase 3 delivers the orchestrator: a `Dag` (validate + topo sort + profile-batch
+grouping), a two-stage `accept` gate (none/schema/regex/test/critic/state), an
+`Escalator` that retries within a per-job budget then escalates to a replan (capped
+at 3, never a third attempt), and a profile-batched `Scheduler` that loads a model
+at most once per batch. The CLI exposes it via `hy3 plan validate <file>`.
+
+No UI yet — that is Phase 6 (console).
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

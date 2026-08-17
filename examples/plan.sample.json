@@ -1,0 +1,10 @@
+{
+  "session_ceiling": "write",
+  "jobs": [
+    {"id": "a1", "capability_id": "net.scan.lan", "profile": "analyst"},
+    {"id": "a2", "capability_id": "net.diag.dns", "profile": "analyst", "depends_on": ["a1"]},
+    {"id": "b1", "capability_id": "memory.search", "profile": "boss"},
+    {"id": "c1", "capability_id": "report.write", "profile": "coder", "risk": "write",
+     "acceptance": {"type": "regex", "pattern": "OK"}}
+  ]
+}
