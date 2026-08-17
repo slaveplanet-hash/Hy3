@@ -1,0 +1,37 @@
+# llama-swap profile -> model launch mapping (plan §6).
+#
+# llama-swap owns model lifecycle: the harness makes ordinary OpenAI-format calls
+# and only changes the `model` field per profile. No model download/load/unload
+# code lives in the harness. `ttl` is the idle time after which llama-swap unloads
+# the model to free VRAM. Adjust model paths to your machine.
+#
+# 12GB-card profile table (verify current best-in-class before locking in):
+#   boss     Qwen3-4B Q4   CPU    planning/routing/synthesis
+#   coder    Qwen3-14B Q4  GPU    code/scripts/config
+#   analyst  Qwen3-14B Q4  GPU    log/capture/traffic reasoning
+#   vision   Qwen2.5-VL-7B Q4 GPU screenshot grounding / desktop
+#   embed    bge-m3/nomic  GPU    retrieval, resident
+
+profiles:
+  boss:
+    model: qwen3-4b-q4
+    launch: "llama-server -m models/qwen3-4b-q4.gguf --n-gpu-layers 0 --port 8080"
+    ttl: 600
+  coder:
+    model: qwen3-14b-q4
+    launch: "llama-server -m models/qwen3-14b-q4.gguf --n-gpu-layers 33 --port 8080"
+    ttl: 300
+  analyst:
+    model: qwen3-14b-q4
+    launch: "llama-server -m models/qwen3-14b-q4.gguf --n-gpu-layers 33 --port 8080"
+    ttl: 300
+  vision:
+    model: qwen2.5-vl-7b-q4
+    launch: "llama-server -m models/qwen2.5-vl-7b-q4.gguf --n-gpu-layers 20 --port 8080"
+    ttl: 300
+  embed:
+    model: bge-m3
+    launch: "llama-server -m models/bge-m3-q4.gguf --n-gpu-layers 8 --port 8080"
+    ttl: 0   # resident
+
+base_url: "http://localhost:8080/v1"
